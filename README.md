@@ -1,37 +1,92 @@
 # Uptime Robot
 
-A lightweight static webpage that periodically pings any API URL from your browser to keep free-tier deployments (Render, Railway, Fly.io, etc.) from sleeping.
+A lightweight uptime monitor that pings your API URLs on a schedule to keep free-tier deployments (Render, Railway, Fly.io, etc.) from sleeping.
 
-## Features
+**Two modes — choose what works for you:**
 
-- Enter any API URL you want to keep alive
-- Choose a ping interval: **1, 2, 3, 5, 10, 15, 30, or 60 minutes**
-- Live countdown timer to the next ping
-- Colour-coded ping log (success / error)
-- "Ping Now" button for an immediate manual ping
-- API URL is saved in `localStorage` so it persists across refreshes
-- Runs entirely in your browser — no server or backend needed
+| Mode | How to use | Keeps running when browser closes? |
+|------|-----------|-----------------------------------|
+| **Server Mode** *(recommended)* | `npm start` on your machine or a VPS | ✅ Yes — 24/7 |
+| **Browser Mode** | Open the GitHub Pages URL | ❌ No — tab must stay open |
 
-## Usage
+---
 
-1. Open the GitHub Pages URL (e.g. `https://<username>.github.io/uptime-robot/`)
-2. Paste your API URL into the **API URL** field
-3. Select the desired **Ping Interval**
-4. Click **Start** — the page will ping the URL on that schedule
-5. Keep the browser tab open while you need the pinging to run
+## Server Mode (runs 24/7)
 
-## Deploying to GitHub Pages
+Run the included Node.js server so monitoring continues even after you close your browser.
 
-The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically deploys the site to GitHub Pages whenever you push to the `main` branch.
+### Quick start
+
+```bash
+git clone https://github.com/<you>/uptime-robot.git
+cd uptime-robot
+npm install
+npm start
+```
+
+Then open **http://localhost:3000** in your browser.
+
+### What you get
+
+- **Monitors keep running** on the server even after you close the browser tab
+- **Multiple monitors** — track as many URLs as you need simultaneously
+- **Persistent across restarts** — monitors are saved to `monitors.json` and automatically resume on server restart
+- **Real-time logs** streamed to the browser via Server-Sent Events
+- **REST API** — manage monitors programmatically:
+
+  | Method | Path | Description |
+  |--------|------|-------------|
+  | `GET` | `/api/monitors` | List all monitors |
+  | `POST` | `/api/monitors` | Add and start a monitor `{ url, interval }` |
+  | `GET` | `/api/monitors/:id` | Get a single monitor |
+  | `DELETE` | `/api/monitors/:id` | Remove a monitor |
+  | `POST` | `/api/monitors/:id/start` | Resume a stopped monitor |
+  | `POST` | `/api/monitors/:id/stop` | Pause a running monitor |
+  | `GET` | `/api/monitors/:id/logs` | Get ping logs for a monitor |
+  | `POST` | `/api/ping` | One-off ping `{ url }` |
+  | `GET` | `/api/events` | SSE stream for real-time updates |
+
+### Running on a VPS / always-on machine
+
+```bash
+# With pm2 (keeps the server alive after logout)
+npm install -g pm2
+pm2 start server.js --name uptime-robot
+pm2 save
+pm2 startup
+```
+
+---
+
+## Browser Mode (static / GitHub Pages)
+
+If you just want the simple browser-based pinger, open the GitHub Pages URL. The page auto-detects that no server is present and falls back to browser mode, showing a warning that monitoring stops when the tab is closed.
+
+### Deploying to GitHub Pages
+
+The repository includes a GitHub Actions workflow that automatically deploys to GitHub Pages on every push to `main`.
 
 **One-time setup:**
 
 1. Go to **Settings → Pages** in your GitHub repository
 2. Under *Source*, select **GitHub Actions**
-3. Push your changes to `main` — the workflow will deploy automatically
+3. Push your changes to `main` — the workflow deploys automatically
+
+---
+
+## Features
+
+- **Server Mode**: 24/7 monitoring — survives browser close and server restart
+- **Browser Mode**: lightweight, no install required
+- Auto-detects mode — one `index.html` works in both
+- Multiple URL monitors with individual start/stop/delete controls
+- Live countdown to next ping
+- Colour-coded ping log (✅ success / ❌ error)
+- Ping intervals: 1, 2, 3, 5, 10, 15, 30, or 60 minutes
+- Real-time log streaming via SSE (server mode)
 
 ## How it works
 
-The page uses the browser `fetch` API with `mode: 'no-cors'` so it can reach cross-origin endpoints without needing CORS headers on the target server. The ping is a simple `GET` request — just enough to wake a sleeping dyno or container.
+**Server mode:** The Node.js server uses Node's built-in `http`/`https` modules to ping target URLs from the server side (no CORS issues). Schedules are managed with `setInterval`. Monitors and their `autoStart` flag are persisted to `monitors.json` so they survive restarts.
 
-> **Note:** Keep the browser tab open. Once you close the tab the pinging stops.
+**Browser mode:** Uses `fetch` with `mode: 'no-cors'` to reach cross-origin endpoints without needing CORS headers on the target. The ping is a simple GET request — just enough to wake a sleeping container.
