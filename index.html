@@ -29,10 +29,97 @@
     .subtitle {
       color: #94a3b8;
       font-size: 0.95rem;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
       text-align: center;
     }
 
+    /* ── Mode badge ── */
+    .mode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .mode-badge.server { background: #14532d; color: #4ade80; border: 1px solid #16a34a; }
+    .mode-badge.browser { background: #431407; color: #fb923c; border: 1px solid #c2410c; }
+    .mode-badge .dot-sm {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .mode-badge.server .dot-sm { background: #4ade80; animation: pulse 1.5s infinite; }
+    .mode-badge.browser .dot-sm { background: #fb923c; }
+
+    /* ── Browser-mode warning ── */
+    .browser-warning {
+      width: 100%;
+      max-width: 600px;
+      background: #431407;
+      border: 1px solid #9a3412;
+      border-radius: 10px;
+      padding: 0.85rem 1.1rem;
+      font-size: 0.88rem;
+      color: #fed7aa;
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+    .browser-warning strong { color: #fb923c; }
+
+    /* ── Server-mode monitors list ── */
+    #monitorsSection { width: 100%; max-width: 600px; }
+
+    .monitor-item {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .monitor-row {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .monitor-url {
+      flex: 1;
+      font-size: 0.9rem;
+      color: #e2e8f0;
+      word-break: break-all;
+      font-weight: 600;
+    }
+
+    .monitor-meta {
+      font-size: 0.78rem;
+      color: #64748b;
+    }
+
+    .badge-up   { color: #4ade80; font-weight: 700; }
+    .badge-down { color: #f87171; font-weight: 700; }
+    .badge-unknown { color: #94a3b8; font-weight: 700; }
+
+    .btn-sm {
+      flex: unset !important;
+      min-width: unset !important;
+      padding: 0.3rem 0.75rem !important;
+      font-size: 0.8rem !important;
+    }
+
+    .btn-stop-monitor  { background: #ef4444; color: #fff; }
+    .btn-start-monitor { background: #0ea5e9; color: #fff; }
+    .btn-del-monitor   { background: #334155; color: #94a3b8; }
+    .btn-log-monitor   { background: #334155; color: #94a3b8; }
+
+    /* ── Card ── */
     .card {
       background: #1e293b;
       border: 1px solid #334155;
@@ -53,7 +140,7 @@
       letter-spacing: 0.05em;
     }
 
-    input[type="text"], select {
+    input[type="text"], input[type="password"], select {
       width: 100%;
       background: #0f172a;
       border: 1px solid #475569;
@@ -65,10 +152,7 @@
       transition: border-color 0.2s;
     }
 
-    input[type="text"]:focus, select:focus {
-      border-color: #38bdf8;
-    }
-
+    input[type="text"]:focus, input[type="password"]:focus, select:focus { border-color: #38bdf8; }
     select option { background: #1e293b; }
 
     .field { margin-bottom: 1.25rem; }
@@ -92,25 +176,13 @@
     }
 
     button:active { transform: scale(0.97); }
-
-    #startBtn {
-      background: #0ea5e9;
-      color: #fff;
-    }
-
-    #stopBtn {
-      background: #ef4444;
-      color: #fff;
-    }
-
-    #pingNowBtn {
-      background: #10b981;
-      color: #fff;
-    }
-
     button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* Status banner */
+    #startBtn  { background: #0ea5e9; color: #fff; }
+    #stopBtn   { background: #ef4444; color: #fff; }
+    #pingNowBtn{ background: #10b981; color: #fff; }
+
+    /* ── Status banner ── */
     .status-banner {
       display: flex;
       align-items: center;
@@ -139,10 +211,10 @@
       50%       { opacity: 0.4; }
     }
 
-    #statusText { font-size: 0.95rem; color: #e2e8f0; }
+    #statusText    { font-size: 0.95rem; color: #e2e8f0; }
     #countdownText { margin-left: auto; font-size: 0.85rem; color: #94a3b8; white-space: nowrap; }
 
-    /* Log */
+    /* ── Log ── */
     .log-header {
       display: flex;
       align-items: center;
@@ -150,7 +222,13 @@
       margin-bottom: 0.75rem;
     }
 
-    .log-header span { font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+    .log-header span {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
 
     #clearLog {
       flex: unset;
@@ -207,10 +285,38 @@
   <h1>⏱ Uptime Robot</h1>
   <p class="subtitle">Keep your free-tier APIs awake by pinging them on a schedule.</p>
 
-  <!-- Config card -->
+  <!-- Mode indicator (populated by JS) -->
+  <div id="modeBadge" class="mode-badge browser">
+    <span class="dot-sm"></span>
+    <span id="modeLabel">Detecting…</span>
+  </div>
+
+  <!-- API-key panel — shown in server mode when API_SECRET is configured -->
+  <div id="apiKeyPanel" class="card" style="display:none;">
+    <p style="font-size:0.88rem;color:#94a3b8;margin-bottom:1rem;">
+      🔒 This server requires an API key. Enter the value of your <code>API_SECRET</code> environment variable to connect.
+    </p>
+    <div class="field">
+      <label for="apiKeyInput">API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="Paste your API_SECRET here" autocomplete="off" />
+    </div>
+    <div class="btn-row">
+      <button id="apiKeyConnectBtn">🔐 Connect</button>
+    </div>
+    <p id="apiKeyError" style="margin-top:0.75rem;font-size:0.85rem;color:#f87171;display:none;"></p>
+  </div>
+
+  <!-- Browser-mode warning (hidden in server mode) -->
+  <div id="browserWarning" class="browser-warning" style="display:none;">
+    ⚠️ <strong>Browser Mode</strong> — monitoring runs only while this tab is open.
+    To keep monitoring running 24/7, start the server: <code>npm install &amp;&amp; npm start</code>
+    then open <code>http://localhost:3000</code>.
+  </div>
+
+  <!-- ── Config card (shared by both modes) ── -->
   <div class="card">
     <div class="field">
-      <label for="apiUrl">API URL</label>
+      <label for="apiUrl">API URL to monitor</label>
       <input type="text" id="apiUrl" placeholder="https://your-api.onrender.com/health" autocomplete="off" />
     </div>
 
@@ -235,8 +341,8 @@
     </div>
   </div>
 
-  <!-- Status banner -->
-  <div style="width:100%;max-width:600px;">
+  <!-- ── Status banner (browser mode) ── -->
+  <div style="width:100%;max-width:600px;" id="singleMonitorSection">
     <div class="status-banner">
       <div class="dot idle" id="statusDot"></div>
       <span id="statusText">Idle — configure a URL and press Start.</span>
@@ -246,7 +352,7 @@
     <!-- Log card -->
     <div class="card">
       <div class="log-header">
-        <span>Ping Log</span>
+        <span id="logTitle">Ping Log</span>
         <button id="clearLog">Clear</button>
       </div>
       <ul id="log">
@@ -255,38 +361,75 @@
     </div>
   </div>
 
-  <footer>Runs entirely in your browser – no server needed.</footer>
+  <!-- ── Server-mode: active monitors list ── -->
+  <div id="monitorsSection" style="display:none;">
+    <h2 style="font-size:0.85rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:0.75rem;">
+      Active Monitors
+    </h2>
+    <div id="monitorsList">
+      <p class="empty-log" style="text-align:left;padding:0.5rem 0;">No monitors yet. Add one above.</p>
+    </div>
+  </div>
+
+  <footer id="footerText">Runs entirely in your browser – no server needed.</footer>
 
   <script>
-    const apiUrlInput   = document.getElementById('apiUrl');
-    const intervalSel   = document.getElementById('interval');
-    const startBtn      = document.getElementById('startBtn');
-    const stopBtn       = document.getElementById('stopBtn');
-    const pingNowBtn    = document.getElementById('pingNowBtn');
-    const clearLogBtn   = document.getElementById('clearLog');
-    const statusDot     = document.getElementById('statusDot');
-    const statusText    = document.getElementById('statusText');
-    const countdownText = document.getElementById('countdownText');
-    const logList       = document.getElementById('log');
-    let emptyMsg      = document.getElementById('emptyMsg');
+    // ── DOM refs ──────────────────────────────────────────────────────────────
+    const apiUrlInput      = document.getElementById('apiUrl');
+    const intervalSel      = document.getElementById('interval');
+    const startBtn         = document.getElementById('startBtn');
+    const stopBtn          = document.getElementById('stopBtn');
+    const pingNowBtn       = document.getElementById('pingNowBtn');
+    const clearLogBtn      = document.getElementById('clearLog');
+    const statusDot        = document.getElementById('statusDot');
+    const statusText       = document.getElementById('statusText');
+    const countdownText    = document.getElementById('countdownText');
+    const logList          = document.getElementById('log');
+    const modeBadge        = document.getElementById('modeBadge');
+    const modeLabel        = document.getElementById('modeLabel');
+    const browserWarn      = document.getElementById('browserWarning');
+    const monitorsSection  = document.getElementById('monitorsSection');
+    const monitorsList     = document.getElementById('monitorsList');
+    const singleSection    = document.getElementById('singleMonitorSection');
+    const footerText       = document.getElementById('footerText');
+    const apiKeyPanel      = document.getElementById('apiKeyPanel');
+    const apiKeyInput      = document.getElementById('apiKeyInput');
+    const apiKeyConnectBtn = document.getElementById('apiKeyConnectBtn');
+    const apiKeyError      = document.getElementById('apiKeyError');
+    let emptyMsg = document.getElementById('emptyMsg');
 
-    let pingTimer      = null;   // setInterval handle for pings
-    let countdownTimer = null;   // setInterval handle for countdown display
-    let nextPingAt     = null;   // timestamp of next scheduled ping
+    // ── State ─────────────────────────────────────────────────────────────────
+    let serverMode      = false;
+    let pingTimer       = null;
+    let countdownTimer  = null;
+    let nextPingAt      = null;
+    let activeMonitorId = null; // which server monitor's logs we're watching
+    // API key is stored in sessionStorage so it survives page refresh but not
+    // a new session — more secure than localStorage for a credential.
+    let apiKey = sessionStorage.getItem('uptimeRobotApiKey') || null;
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-    function now() {
-      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    function fmtTime(isoOrDate) {
+      const d = isoOrDate ? new Date(isoOrDate) : new Date();
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
     function addLog(msg, type = 'info') {
-      if (emptyMsg) emptyMsg.remove();
+      if (emptyMsg) { emptyMsg.remove(); emptyMsg = null; }
       const li = document.createElement('li');
       li.className = `log-entry ${type}`;
-      li.innerHTML = `<span class="log-time">${now()}</span><span class="log-msg">${msg}</span>`;
+      li.innerHTML = `<span class="log-time">${fmtTime()}</span><span class="log-msg">${escHtml(msg)}</span>`;
       logList.prepend(li);
-      // keep at most 200 entries
+      while (logList.children.length > 200) logList.lastChild.remove();
+    }
+
+    function addLogEntry(entry) {
+      if (emptyMsg) { emptyMsg.remove(); emptyMsg = null; }
+      const li = document.createElement('li');
+      li.className = `log-entry ${entry.type}`;
+      li.innerHTML = `<span class="log-time">${fmtTime(entry.timestamp)}</span><span class="log-msg">${escHtml(entry.message)}</span>`;
+      logList.prepend(li);
       while (logList.children.length > 200) logList.lastChild.remove();
     }
 
@@ -306,33 +449,34 @@
     function startCountdownDisplay() {
       if (countdownTimer) clearInterval(countdownTimer);
       countdownTimer = setInterval(() => {
-        if (nextPingAt) {
-          countdownText.textContent = formatCountdown(nextPingAt - Date.now());
-        }
+        if (nextPingAt) countdownText.textContent = formatCountdown(nextPingAt - Date.now());
       }, 500);
     }
 
     function stopCountdownDisplay() {
-      if (countdownTimer) clearInterval(countdownTimer);
-      countdownTimer = null;
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
       countdownText.textContent = '';
     }
 
-    // ── Ping ─────────────────────────────────────────────────────────────────
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
 
-    async function ping() {
+    // ── Browser-mode ping ─────────────────────────────────────────────────────
+
+    async function browserPing() {
       const url = apiUrlInput.value.trim();
-      if (!url) {
-        addLog('No URL configured — skipping ping.', 'error');
-        return;
-      }
+      if (!url) { addLog('No URL configured — skipping ping.', 'error'); return; }
 
       setStatus('running', `Pinging ${url}…`);
       const t0 = Date.now();
       try {
-        const res = await fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
-        const ms  = Date.now() - t0;
-        // no-cors → opaque response, status is always 0 — treat as success
+        await fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
+        const ms = Date.now() - t0;
         addLog(`✅ Ping sent to ${url} (${ms} ms)`, 'success');
         setStatus('running', `Running — last ping successful (${ms} ms).`);
       } catch (err) {
@@ -340,79 +484,439 @@
         addLog(`❌ Failed to ping ${url}: ${err.message} (${ms} ms)`, 'error');
         setStatus('error', `Error — last ping failed: ${err.message}`);
       }
-
-      // refresh next-ping timestamp after each ping
       const intervalMs = parseInt(intervalSel.value, 10) * 60 * 1000;
       nextPingAt = Date.now() + intervalMs;
     }
 
-    // ── Controls ──────────────────────────────────────────────────────────────
+    // ── Browser-mode controls ─────────────────────────────────────────────────
 
-    function start() {
+    function browserStart() {
       const url = apiUrlInput.value.trim();
-      if (!url) {
-        alert('Please enter an API URL first.');
-        return;
-      }
-
+      if (!url) { alert('Please enter an API URL first.'); return; }
       const intervalMs = parseInt(intervalSel.value, 10) * 60 * 1000;
-
-      // Immediate ping + schedule repeats
-      ping();
-      pingTimer = setInterval(ping, intervalMs);
+      browserPing();
+      pingTimer  = setInterval(browserPing, intervalMs);
       nextPingAt = Date.now() + intervalMs;
-
       startBtn.disabled    = true;
       stopBtn.disabled     = false;
       apiUrlInput.disabled = true;
       intervalSel.disabled = true;
-
       addLog(`🚀 Scheduler started — interval: ${intervalSel.value} min.`, 'info');
       startCountdownDisplay();
     }
 
-    function stop() {
+    function browserStop() {
       if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
       stopCountdownDisplay();
-
       startBtn.disabled    = false;
       stopBtn.disabled     = true;
       apiUrlInput.disabled = false;
       intervalSel.disabled = false;
-
       setStatus('idle', 'Stopped.');
       addLog('⏹ Scheduler stopped.', 'info');
     }
 
-    // ── Event Listeners ───────────────────────────────────────────────────────
+    // ── Server-mode API helpers ───────────────────────────────────────────────
 
-    startBtn.addEventListener('click', start);
-    stopBtn.addEventListener('click', stop);
-    pingNowBtn.addEventListener('click', () => {
-      const url = apiUrlInput.value.trim();
-      if (!url) { alert('Please enter an API URL first.'); return; }
-      ping();
-      // reset countdown if scheduler is running
-      if (pingTimer) {
-        clearInterval(pingTimer);
-        const intervalMs = parseInt(intervalSel.value, 10) * 60 * 1000;
-        pingTimer  = setInterval(ping, intervalMs);
-        nextPingAt = Date.now() + intervalMs;
+    async function apiRequest(method, path, body) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+      const opts = { method, headers };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(path, opts);
+      if (res.status === 401) {
+        // Stored key is no longer valid — ask the user to re-enter it
+        apiKey = null;
+        sessionStorage.removeItem('uptimeRobotApiKey');
+        showAuthPanel();
+        throw new Error('Unauthorized');
       }
-    });
+      return res.json();
+    }
+
+    async function serverStart() {
+      const url      = apiUrlInput.value.trim();
+      const interval = parseInt(intervalSel.value, 10);
+      if (!url) { alert('Please enter an API URL first.'); return; }
+
+      try {
+        const data = await apiRequest('POST', '/api/monitors', { url, interval });
+        if (data.error) {
+          if (data.error.includes('already exists')) {
+            alert('A monitor for this URL already exists.');
+          } else {
+            alert('Error: ' + data.error);
+          }
+          return;
+        }
+        activeMonitorId = data.id;
+        await refreshMonitors();
+        loadServerLogs(data.id);
+        apiUrlInput.value = '';
+        localStorage.removeItem('uptimeRobotUrl');
+      } catch (err) {
+        alert('Could not reach server: ' + err.message);
+      }
+    }
+
+    async function serverStop(id) {
+      await apiRequest('POST', `/api/monitors/${id}/stop`);
+      await refreshMonitors();
+    }
+
+    async function serverResume(id) {
+      await apiRequest('POST', `/api/monitors/${id}/start`);
+      await refreshMonitors();
+    }
+
+    async function serverDelete(id) {
+      if (!confirm('Remove this monitor?')) return;
+      await apiRequest('DELETE', `/api/monitors/${id}`);
+      if (activeMonitorId === id) {
+        activeMonitorId = null;
+        logList.innerHTML = '<li class="empty-log" id="emptyMsg">No pings yet.</li>';
+        emptyMsg = document.getElementById('emptyMsg');
+        setStatus('idle', 'Monitor removed.');
+        stopCountdownDisplay();
+      }
+      await refreshMonitors();
+    }
+
+    async function loadServerLogs(id) {
+      activeMonitorId = id;
+      document.getElementById('logTitle').textContent = 'Ping Log';
+      logList.innerHTML = '';
+      emptyMsg = null;
+      try {
+        const entries = await apiRequest('GET', `/api/monitors/${id}/logs`);
+        if (!entries.length) {
+          logList.innerHTML = '<li class="empty-log" id="emptyMsg">No pings yet.</li>';
+          emptyMsg = document.getElementById('emptyMsg');
+          return;
+        }
+        entries.forEach(entry => addLogEntry(entry));
+      } catch (_) {}
+    }
+
+    async function refreshMonitors() {
+      try {
+        const list = await apiRequest('GET', '/api/monitors');
+        renderMonitors(list);
+      } catch (_) {}
+    }
+
+    // ── Server-mode: single global countdown for all monitor next-ping labels ─
+    let monitorCountdownTimer = null;
+    function startMonitorCountdowns() {
+      if (monitorCountdownTimer) return; // already running
+      monitorCountdownTimer = setInterval(() => {
+        document.querySelectorAll('[data-nextping]').forEach(el => {
+          const ts = parseInt(el.dataset.nextping, 10);
+          el.textContent = 'Next ping: ' + formatCountdown(ts - Date.now());
+        });
+      }, 500);
+    }
+
+    function renderMonitors(list) {
+      if (!list.length) {
+        monitorsList.innerHTML = '<p class="empty-log" style="text-align:left;padding:0.5rem 0;">No monitors yet. Add one above.</p>';
+        setStatus('idle', 'No monitors running.');
+        stopCountdownDisplay();
+        return;
+      }
+
+      monitorsList.innerHTML = '';
+      list.forEach(m => {
+        const statusClass = m.lastStatus === 'up' ? 'badge-up' : m.lastStatus === 'down' ? 'badge-down' : 'badge-unknown';
+        const statusLabel = m.lastStatus === 'up' ? '● UP' : m.lastStatus === 'down' ? '● DOWN' : '● UNKNOWN';
+        const isActive    = m.id === activeMonitorId;
+
+        const item = document.createElement('div');
+        item.className = 'monitor-item';
+        item.dataset.id = m.id;
+        if (isActive) item.style.borderColor = '#38bdf8';
+
+        // Build rows using textContent / createElement to avoid XSS
+        const row1 = document.createElement('div');
+        row1.className = 'monitor-row';
+        const urlSpan = document.createElement('span');
+        urlSpan.className = 'monitor-url';
+        urlSpan.textContent = m.url;
+        const statusSpan = document.createElement('span');
+        statusSpan.className = statusClass;
+        statusSpan.textContent = statusLabel;
+        row1.append(urlSpan, statusSpan);
+
+        const row2 = document.createElement('div');
+        row2.className = 'monitor-row';
+        const intMeta = document.createElement('span');
+        intMeta.className = 'monitor-meta';
+        intMeta.textContent = `Interval: ${m.interval} min`;
+        row2.append(intMeta);
+        if (m.lastChecked) {
+          const chkMeta = document.createElement('span');
+          chkMeta.className = 'monitor-meta';
+          chkMeta.textContent = `Last checked: ${fmtTime(m.lastChecked)}`;
+          row2.append(chkMeta);
+        }
+        if (m.running && m.nextPingAt) {
+          const cdEl = document.createElement('span');
+          cdEl.className = 'monitor-meta';
+          cdEl.dataset.nextping = m.nextPingAt;
+          cdEl.textContent = 'Next ping: …';
+          row2.append(cdEl);
+        }
+
+        const row3 = document.createElement('div');
+        row3.className = 'monitor-row';
+        row3.style.gap = '0.5rem';
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = m.running ? 'btn-sm btn-stop-monitor' : 'btn-sm btn-start-monitor';
+        toggleBtn.textContent = m.running ? '⏹ Stop' : '▶ Resume';
+        toggleBtn.dataset.action = m.running ? 'stop' : 'resume';
+
+        const logBtn = document.createElement('button');
+        logBtn.className = 'btn-sm btn-log-monitor';
+        logBtn.textContent = '📋 Logs';
+        logBtn.dataset.action = 'logs';
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-sm btn-del-monitor';
+        delBtn.textContent = '🗑 Remove';
+        delBtn.dataset.action = 'delete';
+
+        row3.append(toggleBtn, logBtn, delBtn);
+        item.append(row1, row2, row3);
+        monitorsList.appendChild(item);
+      });
+
+      // Single delegated click handler on the list
+      monitorsList.onclick = (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const item = btn.closest('[data-id]');
+        if (!item) return;
+        const id = item.dataset.id;
+        const action = btn.dataset.action;
+        if (action === 'stop')   serverStop(id);
+        else if (action === 'resume') serverResume(id);
+        else if (action === 'logs')   loadServerLogs(id);
+        else if (action === 'delete') serverDelete(id);
+      };
+
+      // Start a single shared countdown timer for all monitors
+      startMonitorCountdowns();
+
+      // Update status banner for the active monitor (or first running one)
+      const active = list.find(m => m.id === activeMonitorId) || list.find(m => m.running) || list[0];
+      if (active) {
+        if (active.running) {
+          setStatus('running', `Server monitoring ${active.url}`);
+          if (active.nextPingAt) {
+            nextPingAt = active.nextPingAt;
+            startCountdownDisplay();
+          }
+        } else {
+          setStatus('idle', `Monitoring paused for ${active.url}`);
+          stopCountdownDisplay();
+        }
+      }
+    }
+
+    // ── Server-Sent Events (real-time updates from server) ────────────────────
+
+    function connectSSE() {
+      // EventSource cannot send custom headers; pass the token as a query param
+      // when auth is required (server accepts ?token= for SSE connections).
+      const sseUrl = apiKey
+        ? `/api/events?token=${encodeURIComponent(apiKey)}`
+        : '/api/events';
+      const es = new EventSource(sseUrl);
+
+      es.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+
+        if (data.event === 'snapshot') {
+          renderMonitors(data.monitors || []);
+        } else if (data.event === 'log') {
+          // Only append to visible log panel if it's for the active monitor
+          if (data.monitorId === activeMonitorId) {
+            addLogEntry(data.entry);
+          }
+          // Refresh monitor list to update lastChecked / status
+          refreshMonitors();
+        } else if (data.event === 'status') {
+          refreshMonitors();
+        } else if (data.event === 'deleted') {
+          refreshMonitors();
+          if (data.monitorId === activeMonitorId) {
+            activeMonitorId = null;
+            logList.innerHTML = '<li class="empty-log" id="emptyMsg">Monitor removed.</li>';
+            emptyMsg = document.getElementById('emptyMsg');
+          }
+        }
+      };
+
+      es.onerror = () => {
+        // SSE dropped — try to reconnect after 5 s
+        es.close();
+        setTimeout(connectSSE, 5000);
+      };
+    }
+
+    // ── Mode detection + boot ─────────────────────────────────────────────────
+
+    // Common server-mode UI setup (called once auth is confirmed)
+    async function enterServerMode() {
+      serverMode = true;
+      modeBadge.className = 'mode-badge server';
+      modeLabel.textContent = 'Server Mode — runs 24/7';
+      browserWarn.style.display    = 'none';
+      apiKeyPanel.style.display    = 'none';
+      monitorsSection.style.display = 'block';
+      singleSection.style.display  = 'block';
+      footerText.textContent = 'Monitoring runs on the server — close this tab safely.';
+
+      startBtn.textContent     = '▶ Add Monitor';
+      startBtn.disabled        = false;
+      startBtn.style.display   = '';
+      stopBtn.style.display    = 'none';
+      pingNowBtn.style.display = 'none';
+
+      // Guard against adding the listener multiple times
+      startBtn.removeEventListener('click', serverStart);
+      startBtn.addEventListener('click', serverStart);
+
+      try {
+        const list = await apiRequest('GET', '/api/monitors');
+        renderMonitors(list);
+        if (list.length) {
+          activeMonitorId = list[0].id;
+          loadServerLogs(list[0].id);
+        }
+      } catch (_) { /* 401 is handled inside apiRequest */ }
+
+      connectSSE();
+    }
+
+    // Show the API-key input and hide all other panels
+    function showAuthPanel() {
+      modeBadge.className = 'mode-badge server';
+      modeLabel.textContent = 'Server Mode — runs 24/7';
+      browserWarn.style.display     = 'none';
+      apiKeyPanel.style.display     = 'block';
+      singleSection.style.display   = 'none';
+      monitorsSection.style.display = 'none';
+      startBtn.style.display        = 'none';
+      stopBtn.style.display         = 'none';
+      pingNowBtn.style.display      = 'none';
+      footerText.textContent = 'Monitoring runs on the server — close this tab safely.';
+    }
+
+    function showApiKeyError(msg) {
+      apiKeyError.textContent = msg;
+      apiKeyError.style.display = 'block';
+    }
+
+    async function handleAuthConnect() {
+      const key = apiKeyInput.value.trim();
+      if (!key) { showApiKeyError('Please enter an API key.'); return; }
+
+      apiKeyConnectBtn.disabled   = true;
+      apiKeyError.style.display  = 'none';
+
+      try {
+        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
+        const res = await fetch('/api/monitors', { headers, cache: 'no-store' });
+        if (res.status === 401) {
+          showApiKeyError('Invalid API key. Check your API_SECRET environment variable.');
+          return;
+        }
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        // Key is valid — persist in sessionStorage and enter server mode
+        apiKey = key;
+        sessionStorage.setItem('uptimeRobotApiKey', key);
+        apiKeyInput.value = '';
+        await enterServerMode();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') {
+          showApiKeyError('Connection failed: ' + err.message);
+        }
+      } finally {
+        apiKeyConnectBtn.disabled = false;
+      }
+    }
+
+    function enterBrowserMode() {
+      serverMode = false;
+      modeBadge.className = 'mode-badge browser';
+      modeLabel.textContent = 'Browser Mode — tab must stay open';
+      browserWarn.style.display     = 'block';
+      apiKeyPanel.style.display     = 'none';
+      monitorsSection.style.display = 'none';
+      singleSection.style.display   = 'block';
+      startBtn.style.display        = '';
+      stopBtn.style.display         = '';
+      pingNowBtn.style.display      = '';
+
+      startBtn.addEventListener('click', browserStart);
+      stopBtn.addEventListener('click', browserStop);
+      pingNowBtn.addEventListener('click', () => {
+        const url = apiUrlInput.value.trim();
+        if (!url) { alert('Please enter an API URL first.'); return; }
+        browserPing();
+        if (pingTimer) {
+          clearInterval(pingTimer);
+          const intervalMs = parseInt(intervalSel.value, 10) * 60 * 1000;
+          pingTimer  = setInterval(browserPing, intervalMs);
+          nextPingAt = Date.now() + intervalMs;
+        }
+      });
+    }
+
+    async function detectMode() {
+      try {
+        // Hit /health (always public) — tells us if a server is running and whether auth is required
+        const res = await fetch('/health', { cache: 'no-store' });
+        if (!res.ok) throw new Error('No server');
+        const { authRequired } = await res.json();
+
+        if (authRequired && !apiKey) {
+          // Server found but no key stored yet — prompt the user
+          showAuthPanel();
+          return;
+        }
+        // Server found; enter server mode (apiRequest will call showAuthPanel if key is stale)
+        await enterServerMode();
+      } catch (_) {
+        // No server reachable → fall back to browser mode
+        enterBrowserMode();
+      }
+    }
+
+    // ── Shared event listeners ─────────────────────────────────────────────────
 
     clearLogBtn.addEventListener('click', () => {
       logList.innerHTML = '<li class="empty-log" id="emptyMsg">No pings yet.</li>';
-      // Re-assign so addLog() can still remove it after a clear
       emptyMsg = document.getElementById('emptyMsg');
     });
 
-    // Restore URL from localStorage
+    // API-key panel: connect on button click or Enter key
+    apiKeyConnectBtn.addEventListener('click', handleAuthConnect);
+    apiKeyInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleAuthConnect();
+    });
+
+    // Restore URL from localStorage (browser mode convenience)
     const savedUrl = localStorage.getItem('uptimeRobotUrl');
     if (savedUrl) apiUrlInput.value = savedUrl;
     apiUrlInput.addEventListener('input', () => {
       localStorage.setItem('uptimeRobotUrl', apiUrlInput.value.trim());
     });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    detectMode();
   </script>
 </body>
 </html>

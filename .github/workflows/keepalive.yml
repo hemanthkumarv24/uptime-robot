@@ -1,0 +1,41 @@
+name: Keep-Alive Ping
+
+# Pings the deployed server every 10 minutes so it does not sleep on
+# free-tier hosts (Render, Railway, Fly.io, etc.) that shut down after
+# ~15 minutes of inactivity.
+#
+# ── Setup ────────────────────────────────────────────────────────────────────
+# 1. Go to your repo → Settings → Secrets and variables → Actions → Variables
+# 2. Add a repository variable named APP_URL with the value of your deployed
+#    server URL (e.g. https://my-uptime-robot.onrender.com)
+# 3. The workflow will start running automatically on the schedule below.
+#
+# The /health endpoint is always public (no API_SECRET needed).
+
+on:
+  schedule:
+    # Runs every 10 minutes.  GitHub Actions cron has ~1-2 min of jitter;
+    # the server's own self-ping (every 14 min) is the primary keep-alive —
+    # this workflow is the external backup that can wake a sleeping server.
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # allow manual trigger from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    permissions: {} # no GITHUB_TOKEN access needed — just an outbound HTTP request
+    # Skip entirely when APP_URL is not configured
+    if: ${{ vars.APP_URL }}
+    steps:
+      - name: Ping server health endpoint
+        run: |
+          echo "Pinging ${{ vars.APP_URL }}/health"
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+            --max-time 30 \
+            "${{ vars.APP_URL }}/health")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Server is awake"
+          else
+            echo "⚠️  Server returned $STATUS (it may have been woken up by this request)"
+          fi
