@@ -140,7 +140,7 @@
       letter-spacing: 0.05em;
     }
 
-    input[type="text"], select {
+    input[type="text"], input[type="password"], select {
       width: 100%;
       background: #0f172a;
       border: 1px solid #475569;
@@ -152,7 +152,7 @@
       transition: border-color 0.2s;
     }
 
-    input[type="text"]:focus, select:focus { border-color: #38bdf8; }
+    input[type="text"]:focus, input[type="password"]:focus, select:focus { border-color: #38bdf8; }
     select option { background: #1e293b; }
 
     .field { margin-bottom: 1.25rem; }
@@ -291,6 +291,21 @@
     <span id="modeLabel">Detecting…</span>
   </div>
 
+  <!-- API-key panel — shown in server mode when API_SECRET is configured -->
+  <div id="apiKeyPanel" class="card" style="display:none;">
+    <p style="font-size:0.88rem;color:#94a3b8;margin-bottom:1rem;">
+      🔒 This server requires an API key. Enter the value of your <code>API_SECRET</code> environment variable to connect.
+    </p>
+    <div class="field">
+      <label for="apiKeyInput">API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="Paste your API_SECRET here" autocomplete="off" />
+    </div>
+    <div class="btn-row">
+      <button id="apiKeyConnectBtn">🔐 Connect</button>
+    </div>
+    <p id="apiKeyError" style="margin-top:0.75rem;font-size:0.85rem;color:#f87171;display:none;"></p>
+  </div>
+
   <!-- Browser-mode warning (hidden in server mode) -->
   <div id="browserWarning" class="browser-warning" style="display:none;">
     ⚠️ <strong>Browser Mode</strong> — monitoring runs only while this tab is open.
@@ -360,31 +375,38 @@
 
   <script>
     // ── DOM refs ──────────────────────────────────────────────────────────────
-    const apiUrlInput   = document.getElementById('apiUrl');
-    const intervalSel   = document.getElementById('interval');
-    const startBtn      = document.getElementById('startBtn');
-    const stopBtn       = document.getElementById('stopBtn');
-    const pingNowBtn    = document.getElementById('pingNowBtn');
-    const clearLogBtn   = document.getElementById('clearLog');
-    const statusDot     = document.getElementById('statusDot');
-    const statusText    = document.getElementById('statusText');
-    const countdownText = document.getElementById('countdownText');
-    const logList       = document.getElementById('log');
-    const modeBadge     = document.getElementById('modeBadge');
-    const modeLabel     = document.getElementById('modeLabel');
-    const browserWarn   = document.getElementById('browserWarning');
+    const apiUrlInput      = document.getElementById('apiUrl');
+    const intervalSel      = document.getElementById('interval');
+    const startBtn         = document.getElementById('startBtn');
+    const stopBtn          = document.getElementById('stopBtn');
+    const pingNowBtn       = document.getElementById('pingNowBtn');
+    const clearLogBtn      = document.getElementById('clearLog');
+    const statusDot        = document.getElementById('statusDot');
+    const statusText       = document.getElementById('statusText');
+    const countdownText    = document.getElementById('countdownText');
+    const logList          = document.getElementById('log');
+    const modeBadge        = document.getElementById('modeBadge');
+    const modeLabel        = document.getElementById('modeLabel');
+    const browserWarn      = document.getElementById('browserWarning');
     const monitorsSection  = document.getElementById('monitorsSection');
     const monitorsList     = document.getElementById('monitorsList');
     const singleSection    = document.getElementById('singleMonitorSection');
     const footerText       = document.getElementById('footerText');
+    const apiKeyPanel      = document.getElementById('apiKeyPanel');
+    const apiKeyInput      = document.getElementById('apiKeyInput');
+    const apiKeyConnectBtn = document.getElementById('apiKeyConnectBtn');
+    const apiKeyError      = document.getElementById('apiKeyError');
     let emptyMsg = document.getElementById('emptyMsg');
 
     // ── State ─────────────────────────────────────────────────────────────────
-    let serverMode     = false;
-    let pingTimer      = null;
-    let countdownTimer = null;
-    let nextPingAt     = null;
+    let serverMode      = false;
+    let pingTimer       = null;
+    let countdownTimer  = null;
+    let nextPingAt      = null;
     let activeMonitorId = null; // which server monitor's logs we're watching
+    // API key is stored in sessionStorage so it survives page refresh but not
+    // a new session — more secure than localStorage for a credential.
+    let apiKey = sessionStorage.getItem('uptimeRobotApiKey') || null;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -497,9 +519,18 @@
     // ── Server-mode API helpers ───────────────────────────────────────────────
 
     async function apiRequest(method, path, body) {
-      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      const headers = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+      const opts = { method, headers };
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(path, opts);
+      if (res.status === 401) {
+        // Stored key is no longer valid — ask the user to re-enter it
+        apiKey = null;
+        sessionStorage.removeItem('uptimeRobotApiKey');
+        showAuthPanel();
+        throw new Error('Unauthorized');
+      }
       return res.json();
     }
 
@@ -696,7 +727,12 @@
     // ── Server-Sent Events (real-time updates from server) ────────────────────
 
     function connectSSE() {
-      const es = new EventSource('/api/events');
+      // EventSource cannot send custom headers; pass the token as a query param
+      // when auth is required (server accepts ?token= for SSE connections).
+      const sseUrl = apiKey
+        ? `/api/events?token=${encodeURIComponent(apiKey)}`
+        : '/api/events';
+      const es = new EventSource(sseUrl);
 
       es.onmessage = (e) => {
         const data = JSON.parse(e.data);
@@ -731,54 +767,131 @@
 
     // ── Mode detection + boot ─────────────────────────────────────────────────
 
-    async function detectMode() {
+    // Common server-mode UI setup (called once auth is confirmed)
+    async function enterServerMode() {
+      serverMode = true;
+      modeBadge.className = 'mode-badge server';
+      modeLabel.textContent = 'Server Mode — runs 24/7';
+      browserWarn.style.display    = 'none';
+      apiKeyPanel.style.display    = 'none';
+      monitorsSection.style.display = 'block';
+      singleSection.style.display  = 'block';
+      footerText.textContent = 'Monitoring runs on the server — close this tab safely.';
+
+      startBtn.textContent     = '▶ Add Monitor';
+      startBtn.disabled        = false;
+      startBtn.style.display   = '';
+      stopBtn.style.display    = 'none';
+      pingNowBtn.style.display = 'none';
+
+      // Guard against adding the listener multiple times
+      startBtn.removeEventListener('click', serverStart);
+      startBtn.addEventListener('click', serverStart);
+
       try {
-        const res = await fetch('/api/monitors', { cache: 'no-store' });
-        if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
-        const list = await res.json();
-        // ── Server mode ──
-        serverMode = true;
-        modeBadge.className = 'mode-badge server';
-        modeLabel.textContent = 'Server Mode — runs 24/7';
-        browserWarn.style.display = 'none';
-        monitorsSection.style.display = 'block';
-        footerText.textContent = 'Monitoring runs on the server — close this tab safely.';
-
-        // Wire buttons to server API; hide browser-only buttons
-        startBtn.textContent     = '▶ Add Monitor';
-        startBtn.disabled        = false;
-        stopBtn.style.display    = 'none';
-        pingNowBtn.style.display = 'none';
-
+        const list = await apiRequest('GET', '/api/monitors');
         renderMonitors(list);
         if (list.length) {
           activeMonitorId = list[0].id;
           loadServerLogs(list[0].id);
         }
+      } catch (_) { /* 401 is handled inside apiRequest */ }
 
-        startBtn.addEventListener('click', serverStart);
-        connectSSE();
+      connectSSE();
+    }
+
+    // Show the API-key input and hide all other panels
+    function showAuthPanel() {
+      modeBadge.className = 'mode-badge server';
+      modeLabel.textContent = 'Server Mode — runs 24/7';
+      browserWarn.style.display     = 'none';
+      apiKeyPanel.style.display     = 'block';
+      singleSection.style.display   = 'none';
+      monitorsSection.style.display = 'none';
+      startBtn.style.display        = 'none';
+      stopBtn.style.display         = 'none';
+      pingNowBtn.style.display      = 'none';
+      footerText.textContent = 'Monitoring runs on the server — close this tab safely.';
+    }
+
+    function showApiKeyError(msg) {
+      apiKeyError.textContent = msg;
+      apiKeyError.style.display = 'block';
+    }
+
+    async function handleAuthConnect() {
+      const key = apiKeyInput.value.trim();
+      if (!key) { showApiKeyError('Please enter an API key.'); return; }
+
+      apiKeyConnectBtn.disabled   = true;
+      apiKeyError.style.display  = 'none';
+
+      try {
+        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
+        const res = await fetch('/api/monitors', { headers, cache: 'no-store' });
+        if (res.status === 401) {
+          showApiKeyError('Invalid API key. Check your API_SECRET environment variable.');
+          return;
+        }
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        // Key is valid — persist in sessionStorage and enter server mode
+        apiKey = key;
+        sessionStorage.setItem('uptimeRobotApiKey', key);
+        apiKeyInput.value = '';
+        await enterServerMode();
+      } catch (err) {
+        if (err.message !== 'Unauthorized') {
+          showApiKeyError('Connection failed: ' + err.message);
+        }
+      } finally {
+        apiKeyConnectBtn.disabled = false;
+      }
+    }
+
+    function enterBrowserMode() {
+      serverMode = false;
+      modeBadge.className = 'mode-badge browser';
+      modeLabel.textContent = 'Browser Mode — tab must stay open';
+      browserWarn.style.display     = 'block';
+      apiKeyPanel.style.display     = 'none';
+      monitorsSection.style.display = 'none';
+      singleSection.style.display   = 'block';
+      startBtn.style.display        = '';
+      stopBtn.style.display         = '';
+      pingNowBtn.style.display      = '';
+
+      startBtn.addEventListener('click', browserStart);
+      stopBtn.addEventListener('click', browserStop);
+      pingNowBtn.addEventListener('click', () => {
+        const url = apiUrlInput.value.trim();
+        if (!url) { alert('Please enter an API URL first.'); return; }
+        browserPing();
+        if (pingTimer) {
+          clearInterval(pingTimer);
+          const intervalMs = parseInt(intervalSel.value, 10) * 60 * 1000;
+          pingTimer  = setInterval(browserPing, intervalMs);
+          nextPingAt = Date.now() + intervalMs;
+        }
+      });
+    }
+
+    async function detectMode() {
+      try {
+        // Hit /health (always public) — tells us if a server is running and whether auth is required
+        const res = await fetch('/health', { cache: 'no-store' });
+        if (!res.ok) throw new Error('No server');
+        const { authRequired } = await res.json();
+
+        if (authRequired && !apiKey) {
+          // Server found but no key stored yet — prompt the user
+          showAuthPanel();
+          return;
+        }
+        // Server found; enter server mode (apiRequest will call showAuthPanel if key is stale)
+        await enterServerMode();
       } catch (_) {
-        // ── Browser mode ──
-        serverMode = false;
-        modeBadge.className = 'mode-badge browser';
-        modeLabel.textContent = 'Browser Mode — tab must stay open';
-        browserWarn.style.display = 'block';
-        monitorsSection.style.display = 'none';
-
-        startBtn.addEventListener('click', browserStart);
-        stopBtn.addEventListener('click', browserStop);
-        pingNowBtn.addEventListener('click', () => {
-          const url = apiUrlInput.value.trim();
-          if (!url) { alert('Please enter an API URL first.'); return; }
-          browserPing();
-          if (pingTimer) {
-            clearInterval(pingTimer);
-            const intervalMs = parseInt(intervalSel.value, 10) * 60 * 1000;
-            pingTimer  = setInterval(browserPing, intervalMs);
-            nextPingAt = Date.now() + intervalMs;
-          }
-        });
+        // No server reachable → fall back to browser mode
+        enterBrowserMode();
       }
     }
 
@@ -787,6 +900,12 @@
     clearLogBtn.addEventListener('click', () => {
       logList.innerHTML = '<li class="empty-log" id="emptyMsg">No pings yet.</li>';
       emptyMsg = document.getElementById('emptyMsg');
+    });
+
+    // API-key panel: connect on button click or Enter key
+    apiKeyConnectBtn.addEventListener('click', handleAuthConnect);
+    apiKeyInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleAuthConnect();
     });
 
     // Restore URL from localStorage (browser mode convenience)

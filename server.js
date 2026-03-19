@@ -11,6 +11,12 @@ const { URL } = require('url');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Optional API secret — set API_SECRET env var to protect all /api/* routes
+const API_SECRET = process.env.API_SECRET || null;
+
+// Self-keep-alive URL — set APP_URL (or Render sets RENDER_EXTERNAL_URL automatically)
+const SELF_URL = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
+
 // Where monitor configs are saved so they survive server restarts
 const DATA_FILE = path.join(__dirname, 'monitors.json');
 
@@ -18,13 +24,39 @@ const DATA_FILE = path.join(__dirname, 'monitors.json');
 const indexHtml = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 
 app.use(express.json());
+
+// ── Public routes (no auth required) ─────────────────────────────────────────
+
 // Serve only the frontend HTML — never expose server.js, monitors.json, etc.
 app.get('/', (_req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(indexHtml);
 });
 
-// ── In-memory state ───────────────────────────────────────────────────────────
+// Health check — always public; used by keep-alive pings and mode detection.
+// Returns authRequired so the UI knows whether to prompt for an API key.
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, authRequired: !!API_SECRET });
+});
+
+// ── Auth middleware (applied to all /api/* routes) ────────────────────────────
+
+function requireAuth(req, res, next) {
+  if (!API_SECRET) return next(); // no secret configured → open access
+  const auth     = req.headers.authorization || '';
+  // For EventSource (SSE) clients that cannot set headers, also accept ?token=
+  const provided = auth.startsWith('Bearer ') ? auth.slice(7) : (req.query.token || '');
+  // timingSafeEqual requires equal-length buffers; short-circuit on length mismatch
+  const providedBuf = Buffer.from(provided);
+  const secretBuf   = Buffer.from(API_SECRET);
+  const valid = providedBuf.length === secretBuf.length &&
+                crypto.timingSafeEqual(providedBuf, secretBuf);
+  if (!valid) return res.status(401).json({ error: 'Unauthorized — check your API_SECRET' });
+  next();
+}
+
+app.use('/api', requireAuth);
+
 const monitors   = new Map(); // id → monitor object
 const logs       = new Map(); // id → array of log entries (newest first)
 const timers     = new Map(); // id → setInterval handle
@@ -86,7 +118,7 @@ function pingUrl(rawUrl, timeoutMs = 10000) {
       path:     parsedUrl.pathname + parsedUrl.search,
       method:   'GET',
       timeout:  timeoutMs,
-      headers:  { 'User-Agent': 'UptimeRobot-selfhosted/1.0' },
+      headers:  { 'User-Agent': 'Uptime-Monitor-selfhosted/1.0' },
     };
 
     const req = lib.request(options, (res) => {
@@ -330,10 +362,37 @@ app.get('/api/events', (req, res) => {
 
 loadMonitors();
 
+// ── Self-keep-alive ───────────────────────────────────────────────────────────
+// On free-tier hosts (e.g. Render) the process sleeps after ~15 min of
+// inactivity, which would stop all setInterval monitors.  Pinging our own
+// /health endpoint every 14 minutes prevents the host from putting us to sleep.
+//
+// Set APP_URL (or Render auto-sets RENDER_EXTERNAL_URL) to enable this.
+
+if (SELF_URL) {
+  const KEEPALIVE_MS = 14 * 60 * 1000; // 14 minutes — safely under Render's 15-min threshold
+  setInterval(() => {
+    pingUrl(`${SELF_URL}/health`, 15000)
+      .then(r => {
+        if (r.success) {
+          console.log(`[keep-alive] ✅ Self-ping OK — ${r.duration} ms`);
+        } else {
+          console.warn(`[keep-alive] ⚠️  Self-ping failed: ${r.error}`);
+        }
+      })
+      .catch(err => console.warn('[keep-alive] ⚠️ ', err.message));
+  }, KEEPALIVE_MS);
+  console.log(`  Keep-alive: self-pinging ${SELF_URL}/health every 14 min`);
+} else {
+  console.log('  Keep-alive: set APP_URL env var to prevent sleeping on free-tier hosts');
+}
+
 app.listen(PORT, () => {
   console.log('');
   console.log('  ⏱  Uptime Robot server started');
   console.log(`  → http://localhost:${PORT}`);
+  if (API_SECRET) console.log('  🔒 API authentication: enabled (API_SECRET is set)');
+  else            console.log('  🔓 API authentication: disabled (set API_SECRET to enable)');
   console.log('');
   console.log('  Monitors keep running even when the browser is closed.');
   console.log('  Press Ctrl+C to stop the server.');
