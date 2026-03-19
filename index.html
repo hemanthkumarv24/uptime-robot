@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uptime Robot – Keep APIs Awake</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 0.25rem;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      padding: 0.6rem 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: #38bdf8;
+    }
+
+    select option { background: #1e293b; }
+
+    .field { margin-bottom: 1.25rem; }
+
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.65rem 1.25rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    button:active { transform: scale(0.97); }
+
+    #startBtn {
+      background: #0ea5e9;
+      color: #fff;
+    }
+
+    #stopBtn {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    #pingNowBtn {
+      background: #10b981;
+      color: #fff;
+    }
+
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Status banner */
+    .status-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.9rem 1.25rem;
+      border-radius: 10px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      margin-bottom: 1rem;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #475569;
+    }
+
+    .dot.running { background: #22c55e; animation: pulse 1.5s infinite; }
+    .dot.error   { background: #ef4444; }
+    .dot.idle    { background: #475569; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    #statusText { font-size: 0.95rem; color: #e2e8f0; }
+    #countdownText { margin-left: auto; font-size: 0.85rem; color: #94a3b8; white-space: nowrap; }
+
+    /* Log */
+    .log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .log-header span { font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    #clearLog {
+      flex: unset;
+      min-width: unset;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.8rem;
+      background: #334155;
+      color: #94a3b8;
+    }
+
+    #log {
+      list-style: none;
+      max-height: 280px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    #log::-webkit-scrollbar { width: 6px; }
+    #log::-webkit-scrollbar-track { background: transparent; }
+    #log::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+    .log-entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      font-size: 0.85rem;
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      background: #0f172a;
+    }
+
+    .log-entry.success { border-left: 3px solid #22c55e; }
+    .log-entry.error   { border-left: 3px solid #ef4444; }
+    .log-entry.info    { border-left: 3px solid #38bdf8; }
+
+    .log-time { color: #64748b; white-space: nowrap; flex-shrink: 0; }
+    .log-msg  { color: #e2e8f0; word-break: break-all; }
+
+    .empty-log { color: #475569; font-size: 0.9rem; text-align: center; padding: 1.5rem 0; }
+
+    footer {
+      margin-top: auto;
+      padding-top: 2rem;
+      font-size: 0.8rem;
+      color: #475569;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>⏱ Uptime Robot</h1>
+  <p class="subtitle">Keep your free-tier APIs awake by pinging them on a schedule.</p>
+
+  <!-- Config card -->
+  <div class="card">
+    <div class="field">
+      <label for="apiUrl">API URL</label>
+      <input type="text" id="apiUrl" placeholder="https://your-api.onrender.com/health" autocomplete="off" />
+    </div>
+
+    <div class="field">
+      <label for="interval">Ping Interval</label>
+      <select id="interval">
+        <option value="1">Every 1 minute</option>
+        <option value="2">Every 2 minutes</option>
+        <option value="3">Every 3 minutes</option>
+        <option value="5" selected>Every 5 minutes</option>
+        <option value="10">Every 10 minutes</option>
+        <option value="15">Every 15 minutes</option>
+        <option value="30">Every 30 minutes</option>
+        <option value="60">Every 60 minutes</option>
+      </select>
+    </div>
+
+    <div class="btn-row">
+      <button id="startBtn">▶ Start</button>
+      <button id="stopBtn" disabled>⏹ Stop</button>
+      <button id="pingNowBtn">⚡ Ping Now</button>
+    </div>
+  </div>
+
+  <!-- Status banner -->
+  <div style="width:100%;max-width:600px;">
+    <div class="status-banner">
+      <div class="dot idle" id="statusDot"></div>
+      <span id="statusText">Idle — configure a URL and press Start.</span>
+      <span id="countdownText"></span>
+    </div>
+
+    <!-- Log card -->
+    <div class="card">
+      <div class="log-header">
+        <span>Ping Log</span>
+        <button id="clearLog">Clear</button>
+      </div>
+      <ul id="log">
+        <li class="empty-log" id="emptyMsg">No pings yet.</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Runs entirely in your browser – no server needed.</footer>
+
+  <script>
+    const apiUrlInput   = document.getElementById('apiUrl');
+    const intervalSel   = document.getElementById('interval');
+    const startBtn      = document.getElementById('startBtn');
+    const stopBtn       = document.getElementById('stopBtn');
+    const pingNowBtn    = document.getElementById('pingNowBtn');
+    const clearLogBtn   = document.getElementById('clearLog');
+    const statusDot     = document.getElementById('statusDot');
+    const statusText    = document.getElementById('statusText');
+    const countdownText = document.getElementById('countdownText');
+    const logList       = document.getElementById('log');
+    let emptyMsg      = document.getElementById('emptyMsg');
+
+    let pingTimer      = null;   // setInterval handle for pings
+    let countdownTimer = null;   // setInterval handle for countdown display
+    let nextPingAt     = null;   // timestamp of next scheduled ping
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function now() {
+      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function addLog(msg, type = 'info') {
+      if (emptyMsg) emptyMsg.remove();
+      const li = document.createElement('li');
+      li.className = `log-entry ${type}`;
+      li.innerHTML = `<span class="log-time">${now()}</span><span class="log-msg">${msg}</span>`;
+      logList.prepend(li);
+      // keep at most 200 entries
+      while (logList.children.length > 200) logList.lastChild.remove();
+    }
+
+    function setStatus(dotClass, text) {
+      statusDot.className = `dot ${dotClass}`;
+      statusText.textContent = text;
+    }
+
+    function formatCountdown(ms) {
+      if (ms <= 0) return 'pinging…';
+      const s = Math.ceil(ms / 1000);
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return m > 0 ? `Next ping in ${m}m ${sec}s` : `Next ping in ${sec}s`;
+    }
+
+    function startCountdownDisplay() {
+      if (countdownTimer) clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        if (nextPingAt) {
+          countdownText.textContent = formatCountdown(nextPingAt - Date.now());
+        }
+      }, 500);
+    }
+
+    function stopCountdownDisplay() {
+      if (countdownTimer) clearInterval(countdownTimer);
+      countdownTimer = null;
+      countdownText.textContent = '';
+    }
+
+    // ── Ping ─────────────────────────────────────────────────────────────────
+
+    async function ping() {
+      const url = apiUrlInput.value.trim();
+      if (!url) {
+        addLog('No URL configured — skipping ping.', 'error');
+        return;
+      }
+
+      setStatus('running', `Pinging ${url}…`);
+      const t0 = Date.now();
+      try {
+        const res = await fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
+        const ms  = Date.now() - t0;
+        // no-cors → opaque response, status is always 0 — treat as success
+        addLog(`✅ Ping sent to ${url} (${ms} ms)`, 'success');
+        setStatus('running', `Running — last ping successful (${ms} ms).`);
+      } catch (err) {
+        const ms = Date.now() - t0;
+        addLog(`❌ Failed to ping ${url}: ${err.message} (${ms} ms)`, 'error');
+        setStatus('error', `Error — last ping failed: ${err.message}`);
+      }
+
+      // refresh next-ping timestamp after each ping
+      const intervalMs = parseInt(intervalSel.value, 10) * 60 * 1000;
+      nextPingAt = Date.now() + intervalMs;
+    }
+
+    // ── Controls ──────────────────────────────────────────────────────────────
+
+    function start() {
+      const url = apiUrlInput.value.trim();
+      if (!url) {
+        alert('Please enter an API URL first.');
+        return;
+      }
+
+      const intervalMs = parseInt(intervalSel.value, 10) * 60 * 1000;
+
+      // Immediate ping + schedule repeats
+      ping();
+      pingTimer = setInterval(ping, intervalMs);
+      nextPingAt = Date.now() + intervalMs;
+
+      startBtn.disabled    = true;
+      stopBtn.disabled     = false;
+      apiUrlInput.disabled = true;
+      intervalSel.disabled = true;
+
+      addLog(`🚀 Scheduler started — interval: ${intervalSel.value} min.`, 'info');
+      startCountdownDisplay();
+    }
+
+    function stop() {
+      if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+      stopCountdownDisplay();
+
+      startBtn.disabled    = false;
+      stopBtn.disabled     = true;
+      apiUrlInput.disabled = false;
+      intervalSel.disabled = false;
+
+      setStatus('idle', 'Stopped.');
+      addLog('⏹ Scheduler stopped.', 'info');
+    }
+
+    // ── Event Listeners ───────────────────────────────────────────────────────
+
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+    pingNowBtn.addEventListener('click', () => {
+      const url = apiUrlInput.value.trim();
+      if (!url) { alert('Please enter an API URL first.'); return; }
+      ping();
+      // reset countdown if scheduler is running
+      if (pingTimer) {
+        clearInterval(pingTimer);
+        const intervalMs = parseInt(intervalSel.value, 10) * 60 * 1000;
+        pingTimer  = setInterval(ping, intervalMs);
+        nextPingAt = Date.now() + intervalMs;
+      }
+    });
+
+    clearLogBtn.addEventListener('click', () => {
+      logList.innerHTML = '<li class="empty-log" id="emptyMsg">No pings yet.</li>';
+      // Re-assign so addLog() can still remove it after a clear
+      emptyMsg = document.getElementById('emptyMsg');
+    });
+
+    // Restore URL from localStorage
+    const savedUrl = localStorage.getItem('uptimeRobotUrl');
+    if (savedUrl) apiUrlInput.value = savedUrl;
+    apiUrlInput.addEventListener('input', () => {
+      localStorage.setItem('uptimeRobotUrl', apiUrlInput.value.trim());
+    });
+  </script>
+</body>
+</html>
